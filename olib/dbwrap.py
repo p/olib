@@ -179,7 +179,7 @@ class ConnectionWrapper:
         self.conn = None
     
     def cursor(self):
-        cursor = CursorWrapper(self.conn.cursor())
+        cursor = CursorWrapper(self.conn.cursor(), self.conn)
         return CursorContextManager(cursor)
     
     def tx_cursor(self):
