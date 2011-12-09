@@ -186,6 +186,9 @@ class ConnectionWrapper:
         cursor = CursorWrapper(self.conn.cursor(), self)
         return TransactionalCursorContextManager(cursor)
     
+    # we need to rollback transactions after failed statements
+    cursor = tx_cursor
+    
     def commit(self):
         return self.conn.commit()
     
