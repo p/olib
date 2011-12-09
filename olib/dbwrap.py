@@ -1,4 +1,5 @@
 import psycopg2
+import re
 
 from . import dtuple
 
@@ -20,17 +21,23 @@ def quote_schema_name(value):
 
 psycopg2.extensions.adapters[SchemaName] = quote_schema_name
 
+WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
+
 class CursorWrapper:
-    def __init__(self, cursor, conn):
+    def __init__(self, cursor, conn, debug=False):
         self.cursor = cursor
         self.conn = conn
         self._transaction_depth = 0
         self._transaction_depth_request = 0
+        self._debug = debug
     
     def execute(self, sql, args=None):
         sql = sql.replace('%', '%%').replace('?', '%s')
         
         try:
+            if self._debug:
+                debug_sql = WHITESPACE_REGEXP.sub('     ', sql.strip())
+                print 'SQL:', debug_sql + ',', repr(args)
             return self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
             if str(e).startswith('server closed the connection unexpectedly'):
@@ -174,16 +181,17 @@ class TransactionalCursorContextManager(CursorContextManager):
         return CursorContextManager.__exit__(self, type, value, traceback)
 
 class ConnectionWrapper:
-    def __init__(self, dsn):
+    def __init__(self, dsn, debug=False):
         self.dsn = dsn
         self.conn = None
+        self._debug = debug
     
     def cursor(self):
-        cursor = CursorWrapper(self.conn.cursor(), self.conn)
+        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
         return CursorContextManager(cursor)
     
     def tx_cursor(self):
-        cursor = CursorWrapper(self.conn.cursor(), self)
+        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
         return TransactionalCursorContextManager(cursor)
     
     # we need to rollback transactions after failed statements
