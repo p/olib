@@ -32,7 +32,12 @@ class CursorWrapper:
         self._debug = debug
     
     def execute(self, sql, args=None):
-        sql = sql.replace('%', '%%').replace('?', '%s')
+        sql = sql.replace('?', '%s')
+        
+        if args is None:
+            args = ()
+        elif isinstance(args, basestring) or getattr(args, 'length', None) is None:
+            args = (args,)
         
         try:
             if self._debug:
@@ -133,7 +138,7 @@ class CursorWrapper:
     
     def insert_dict(self, table, dict):
         placeholders = '%s' * len(dict)
-        sql = 'insert into %%s (%s) values (%s)' % (placeholders, placeholders)
+        sql = 'insert into %s (%s) values (%s)' % (placeholders, placeholders)
         table = SchemaName(table)
         columns = [SchemaName(column) for column in dict.keys()]
         values = dict.values()
