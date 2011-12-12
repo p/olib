@@ -6,20 +6,28 @@ from . import dtuple
 class ExpressionValue(str):
     pass
 
-def quote_expression_value(value):
-    return value
+class ExpressionValueAdapter(object):
+    def __init__(self, value):
+        self.value = value
+    
+    def getquoted(self):
+        return str(self.value)
 
-psycopg2.extensions.adapters[ExpressionValue] = quote_expression_value
+psycopg2.extensions.register_adapter(ExpressionValue, ExpressionValueAdapter)
 
 # Quoting of table/schema names in psycopg2:
 # http://osdir.com/ml/python.db.psycopg.devel/2004-10/msg00012.html
 class SchemaName(str):
     pass
 
-def quote_schema_name(value):
-    return '"' + value.replace('"', '""') + '"'
+class SchemaNameAdapter(object):
+    def __init__(self, value):
+        self.value = value
+    
+    def getquoted(self):
+        return '"' + self.value.replace('"', '""') + '"'
 
-psycopg2.extensions.adapters[SchemaName] = quote_schema_name
+psycopg2.extensions.register_adapter(SchemaName, SchemaNameAdapter)
 
 WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
 
@@ -36,7 +44,7 @@ class CursorWrapper:
         
         if args is None:
             args = ()
-        elif isinstance(args, basestring) or getattr(args, 'length', None) is None:
+        elif isinstance(args, basestring) or getattr(args, '__len__', None) is None:
             args = (args,)
         
         try:
@@ -70,8 +78,10 @@ class CursorWrapper:
     
     def one(self, sql, args=None):
         self.execute(sql, args)
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
         desc = dtuple.TupleDescriptor(self.cursor.description)
-        row = self.cursor.fetch()
         row = dtuple.DatabaseTuple(desc, row)
         return row
     
@@ -137,12 +147,14 @@ class CursorWrapper:
     #    self.execute(sql, values)
     
     def insert_dict(self, table, dict):
-        placeholders = '%s' * len(dict)
-        sql = 'insert into %s (%s) values (%s)' % (placeholders, placeholders)
+        if not dict:
+            raise ValueError, 'Cannot insert an empty dict'
+        placeholders = ', '.join(['%s'] * len(dict))
+        sql = 'insert into %%s (%s) values (%s)' % (placeholders, placeholders)
         table = SchemaName(table)
         columns = [SchemaName(column) for column in dict.keys()]
         values = dict.values()
-        self.execute(sql, (table, columns, values))
+        self.execute(sql, [table] + columns + values)
     
     # DDL statements
     
@@ -215,4 +227,4 @@ class ConnectionWrapper:
         self.connect()
     
     def expr(self, value):
-        return ExpressionValue(self)
+        return ExpressionValue(value)
