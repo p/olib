@@ -50,7 +50,9 @@ class CursorWrapper:
         try:
             if self._debug:
                 debug_sql = WHITESPACE_REGEXP.sub('     ', sql.strip())
-                print 'SQL:', debug_sql + ',', repr(args)
+                if args:
+                    debug_sql += ', ' + repr(args)
+                print 'SQL:', debug_sql
             return self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
             if str(e).startswith('server closed the connection unexpectedly'):
