@@ -167,7 +167,8 @@ class CursorWrapper:
         table = SchemaName(table)
         columns = [SchemaName(column) for column in dict.keys()]
         values = dict.values()
-        self.execute(sql, [table] + columns + values)
+        args = [table] + columns + values
+        self.execute(sql, *args)
     
     # DDL statements
     
