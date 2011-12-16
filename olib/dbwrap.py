@@ -114,7 +114,7 @@ class CursorWrapper:
     def one_value(self, sql, *args):
         self.execute(sql, *args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
-        row = self.cursor.fetch()
+        row = self.cursor.fetchone()
         if row is None:
             raise "No data"
         return row[0]
