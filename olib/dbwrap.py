@@ -90,7 +90,7 @@ class CursorWrapper:
     # to pass additional options use one2/etc.
     
     def one(self, sql, *args):
-        self.execute(sql, args)
+        self.execute(sql, *args)
         row = self.cursor.fetchone()
         if row is None:
             return None
@@ -99,20 +99,20 @@ class CursorWrapper:
         return row
     
     def one_check(self, sql, *args):
-        row = self.one(sql, args)
+        row = self.one(sql, *args)
         if row is None:
             raise "No data"
         return row
     
     def all(self, sql, *args):
-        self.execute(sql, args)
+        self.execute(sql, *args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [dtuple.DatabaseTuple(desc, row) for row in rows]
         return rows
     
     def one_value(self, sql, *args):
-        self.execute(sql, args)
+        self.execute(sql, *args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
         row = self.cursor.fetch()
         if row is None:
@@ -120,7 +120,7 @@ class CursorWrapper:
         return row[0]
     
     def all_values(self, sql, *args):
-        self.execute(sql, args)
+        self.execute(sql, *args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [row[0] for row in rows]
