@@ -160,15 +160,26 @@ class CursorWrapper:
     #    self.execute(sql, values)
     
     def insert_dict(self, table, dict):
+        return self._insert_dict_impl(table, dict, False)
+    
+    def insert_dict_id(self, table, dict):
+        return self._insert_dict_impl(table, dict, True)
+    
+    def _insert_dict_impl(self, table, dict, return_id):
         if not dict:
             raise ValueError, 'Cannot insert an empty dict'
         placeholders = ', '.join(['%s'] * len(dict))
         sql = 'insert into %%s (%s) values (%s)' % (placeholders, placeholders)
+        if return_id:
+            sql += ' returning (id)'
         table = SchemaName(table)
         columns = [SchemaName(column) for column in dict.keys()]
         values = dict.values()
         args = [table] + columns + values
         self.execute(sql, *args)
+        if return_id:
+            row = self.cursor.fetchone()
+            return row[0]
     
     # DDL statements
     
