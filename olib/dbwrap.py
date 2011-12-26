@@ -187,6 +187,31 @@ class CursorWrapper:
             row = self.cursor.fetchone()
             return row[0]
     
+    def update(self, table, attrs, conditions):
+        if not attrs:
+            raise ValueError, 'Trying to update with an empty attrs'
+        placeholders = ', '.join(['%s=%s'] * len(attrs))
+        sql = 'update %s set ' + placeholders
+        args = [SchemaName(table)]
+        for key in attrs:
+            args.append(SchemaName(key))
+            args.append(attrs[key])
+        if conditions is not None:
+            sql += ' where '
+            if isinstance(conditions, str):
+                sql += str
+            elif isinstance(conditions, dict):
+                if not conditions:
+                    raise ValueError, 'Conditions was an empty dict'
+                sql += ' and '.join(['%s=%s'] * len(conditions))
+                for key in conditions:
+                    args.append(SchemaName(key))
+                    args.append(conditions[key])
+            else:
+                raise ValueError, "Don't know what to do with these conditions"
+        print sql, args
+        self.execute(sql, *args)
+    
     # DDL statements
     
     def add_fkey(self, table, column, target_table=None, target_column=None):
