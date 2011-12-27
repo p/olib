@@ -39,6 +39,9 @@ class SqlIn:
 
 WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
 
+class NotFoundError(StandardError):
+    pass
+
 class CursorWrapper:
     def __init__(self, cursor, conn, debug=False):
         self.cursor = cursor
@@ -101,7 +104,7 @@ class CursorWrapper:
     def one_check(self, sql, *args):
         row = self.one(sql, *args)
         if row is None:
-            raise "No data"
+            raise NotFoundError, "No data"
         return row
     
     def all(self, sql, *args):
@@ -122,7 +125,7 @@ class CursorWrapper:
         self.execute(sql, *args)
         row = self.cursor.fetchone()
         if row is None:
-            raise "No data"
+            raise NotFoundError, "No data"
         return row[0]
     
     def all_values(self, sql, *args):
