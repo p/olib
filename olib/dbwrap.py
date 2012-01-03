@@ -51,10 +51,16 @@ class CursorWrapper:
         self._debug = debug
     
     def execute(self, sql, *args):
+        return self.execute2(sql, args)
+    
+    def execute2(self, sql, args):
         sql = sql.replace('?', '%s')
         
         if args is None:
             args = ()
+        elif isinstance(args, dict):
+            # keep as a dict
+            pass
         elif isinstance(args, basestring) or getattr(args, '__len__', None) is None:
             args = (args,)
         
@@ -82,7 +88,7 @@ class CursorWrapper:
         for sql in sql_commands.split(';'):
             sql = sql.strip()
             if sql:
-                self.execute(sql)
+                self.execute2(sql)
     
     #def fetchall(self):
         #return self.cursor.fetchall()
@@ -93,7 +99,10 @@ class CursorWrapper:
     # to pass additional options use one2/etc.
     
     def one(self, sql, *args):
-        self.execute(sql, *args)
+        return self.one2(sql, args)
+    
+    def one2(self, sql, args):
+        self.execute2(sql, args)
         row = self.cursor.fetchone()
         if row is None:
             return None
@@ -102,34 +111,49 @@ class CursorWrapper:
         return row
     
     def one_check(self, sql, *args):
-        row = self.one(sql, *args)
+        return self.one_check2(sql, args)
+    
+    def one_check2(sql, args):
+        row = self.one2(sql, args)
         if row is None:
             raise NotFoundError, "No data"
         return row
     
     def all(self, sql, *args):
-        self.execute(sql, *args)
+        return self.all2(sql, args)
+    
+    def all2(self, sql, args):
+        self.execute2(sql, args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [dtuple.DatabaseTuple(desc, row) for row in rows]
         return rows
     
     def one_value(self, sql, *args):
-        self.execute(sql, *args)
+        return self.one_value2(sql, args)
+    
+    def one_value2(self, sql, args):
+        self.execute2(sql, args)
         row = self.cursor.fetchone()
         if row is None:
             return None
         return row[0]
     
     def one_value_check(self, sql, *args):
-        self.execute(sql, *args)
+        return self.one_value_check2(sql, args)
+    
+    def one_value_check2(self, sql, args):
+        self.execute2(sql, args)
         row = self.cursor.fetchone()
         if row is None:
             raise NotFoundError, "No data"
         return row[0]
     
     def all_values(self, sql, *args):
-        self.execute(sql, *args)
+        return self.all_values2(sql, args)
+    
+    def all_values2(self, sql, args):
+        self.execute2(sql, args)
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [row[0] for row in rows]
