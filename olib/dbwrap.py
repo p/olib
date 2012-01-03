@@ -226,7 +226,7 @@ class CursorWrapper:
         if conditions is not None:
             sql += ' where '
             if isinstance(conditions, str):
-                sql += str
+                sql += conditions
             elif isinstance(conditions, dict):
                 if not conditions:
                     raise ValueError, 'Conditions was an empty dict'
@@ -234,6 +234,9 @@ class CursorWrapper:
                 for key in conditions:
                     args.append(SchemaName(key))
                     args.append(conditions[key])
+            elif isinstance(conditions, tuple) or isinstance(conditions, list):
+                sql += conditions[0]
+                args += conditions[1:]
             else:
                 raise ValueError, "Don't know what to do with these conditions"
         print sql, args
