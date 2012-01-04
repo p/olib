@@ -30,12 +30,11 @@ class SchemaNameAdapter(object):
 psycopg2.extensions.register_adapter(SchemaName, SchemaNameAdapter)
 
 # Use this for obtaining original psycopg2 tuple/list escaping behavior
-class SqlArray:
+class SqlArray(list):
     pass
 
-# By default we escape lists rails-style
-class SqlIn:
-    pass
+psycopg2.extensions.register_adapter(list, psycopg2.extensions.SQL_IN)
+psycopg2.extensions.register_adapter(SqlArray, psycopg2._psycopg.List)
 
 WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
 
