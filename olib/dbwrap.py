@@ -112,7 +112,7 @@ class CursorWrapper:
     def one_check(self, sql, *args):
         return self.one_check2(sql, args)
     
-    def one_check2(sql, args):
+    def one_check2(self, sql, args):
         row = self.one2(sql, args)
         if row is None:
             raise NotFoundError, "No data"
