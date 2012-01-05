@@ -67,10 +67,10 @@ class CursorWrapper:
         elif isinstance(args, dict):
             # keep as a dict
             # convert lists to tuples
-            for key in dict:
-                value = dict[key]
+            for key in args:
+                value = args[key]
                 if isinstance(value, list):
-                    dict[key] = tuple(value)
+                    args[key] = tuple(value)
         elif isinstance(args, basestring) or getattr(args, '__len__', None) is None:
             args = (args,)
             convert_lists = True
