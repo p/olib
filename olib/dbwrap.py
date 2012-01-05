@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg2, psycopg2.extras
 import re
 
 from . import dtuple
@@ -33,13 +33,18 @@ psycopg2.extensions.register_adapter(SchemaName, SchemaNameAdapter)
 class SqlArray(list):
     pass
 
-psycopg2.extensions.register_adapter(list, psycopg2.extensions.SQL_IN)
+#psycopg2.extensions.register_adapter(list, psycopg2.extensions.SQL_IN)
 psycopg2.extensions.register_adapter(SqlArray, psycopg2._psycopg.List)
 
 WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
 
 class NotFoundError(StandardError):
     pass
+
+def _lists_to_tuples(arg):
+    if isinstance(arg, list):
+        arg = tuple(arg)
+    return arg
 
 class CursorWrapper:
     def __init__(self, cursor, conn, debug=False):
@@ -55,19 +60,34 @@ class CursorWrapper:
     def execute2(self, sql, args):
         sql = sql.replace('?', '%s')
         
+        convert_lists = False
+        
         if args is None:
             args = ()
         elif isinstance(args, dict):
             # keep as a dict
-            pass
+            # convert lists to tuples
+            for key in dict:
+                value = dict[key]
+                if isinstance(value, list):
+                    dict[key] = tuple(value)
         elif isinstance(args, basestring) or getattr(args, '__len__', None) is None:
             args = (args,)
+            convert_lists = True
+        else:
+            # a tuple or a list
+            convert_lists = True
+        
+        if convert_lists:
+            args = map(_lists_to_tuples, args)
         
         try:
             if self._debug:
-                debug_sql = WHITESPACE_REGEXP.sub('     ', sql.strip())
-                if args:
-                    debug_sql += ', ' + repr(args)
+                debug_sql = self.cursor.mogrify(sql, args)
+                #debug_sql = sql.strip()
+                #if args:
+                    #debug_sql += ', ' + repr(args)
+                debug_sql = WHITESPACE_REGEXP.sub('     ', debug_sql.strip())
                 print 'SQL:', debug_sql
             return self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
@@ -307,6 +327,7 @@ class ConnectionWrapper:
     
     def connect(self):
         self.conn = psycopg2.connect(self.dsn)
+        psycopg2.extras.register_hstore(self.conn)
     
     def reconnect(self):
         self.connect()
