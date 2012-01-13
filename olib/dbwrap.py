@@ -279,6 +279,14 @@ class CursorWrapper:
                 foreign key (%(column)s)
                 references %(target_table)s (%(target_column)s)
         ''' % vars)
+    
+    def list_tables(self):
+        return self.all_values('''
+            select relname from pg_class
+            where relkind='r' and
+                relname not like %s
+                and relname not like %s
+        ''', 'pg_%', 'sql_%')
 
 class CursorContextManager:
     def __init__(self, cursor):
