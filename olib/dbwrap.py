@@ -46,7 +46,7 @@ def _lists_to_tuples(arg):
         arg = tuple(arg)
     return arg
 
-class CursorWrapper:
+class CursorWrapper(object):
     def __init__(self, cursor, conn, debug=False):
         self.cursor = cursor
         self.conn = conn
@@ -288,7 +288,7 @@ class CursorWrapper:
                 and relname not like %s
         ''', 'pg_%', 'sql_%')
 
-class CursorContextManager:
+class CursorContextManager(object):
     def __init__(self, cursor):
         self.cursor = cursor
     
@@ -310,7 +310,7 @@ class TransactionalCursorContextManager(CursorContextManager):
             self.cursor.rollback()
         return CursorContextManager.__exit__(self, type, value, traceback)
 
-class ConnectionWrapper:
+class ConnectionWrapper(object):
     def __init__(self, dsn, debug=False):
         self.dsn = dsn
         self.conn = None
