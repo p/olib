@@ -191,6 +191,11 @@ class CursorWrapper(object):
         self.conn.rollback()
         self._transaction_depth -= 1
     
+    # this is used by fixture
+    def flush(self):
+        self.commit()
+        self.begin()
+    
     def close(self):
         return self.cursor.close()
     
@@ -317,12 +322,20 @@ class ConnectionWrapper(object):
         self._debug = debug
     
     def cursor(self):
-        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        #cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        cursor = self.get_cursor()
         return CursorContextManager(cursor)
     
     def tx_cursor(self):
-        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        #cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        cursor = self.get_cursor()
         return TransactionalCursorContextManager(cursor)
+    
+    # cursor returns a context manager, we need a method that returns
+    # actual cursor for fixture
+    def get_cursor(self):
+        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        return cursor
     
     # we need to rollback transactions after failed statements
     cursor = tx_cursor
