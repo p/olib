@@ -38,7 +38,13 @@ psycopg2.extensions.register_adapter(SqlArray, psycopg2._psycopg.List)
 
 WHITESPACE_REGEXP = re.compile(r'^\s+', re.M)
 
-class NotFoundError(StandardError):
+class DatabaseError(StandardError):
+    pass
+
+class NotFoundError(DatabaseError):
+    pass
+
+class TransactionStateError(DatabaseError):
     pass
 
 def _lists_to_tuples(arg):
@@ -50,8 +56,6 @@ class CursorWrapper(object):
     def __init__(self, cursor, conn, debug=False):
         self.cursor = cursor
         self.conn = conn
-        self._transaction_depth = 0
-        self._transaction_depth_request = 0
         self._debug = debug
     
     def execute(self, sql, *args):
@@ -92,16 +96,16 @@ class CursorWrapper(object):
             return self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
             if str(e).startswith('server closed the connection unexpectedly'):
-                if self._transaction_depth == 0:
+                if self.conn._transaction_depth == 0:
                     self.conn.reconnect()
                     self.cursor = self.conn.cursor()
                     self.cursor.execute(sql, args)
             else:
                 raise
         
-        if self._transaction_depth_request:
-            self._transaction_depth += 1
-            self._transaction_depth_request -= 1
+        #if self.conn._transaction_depth_request:
+            #self.conn._transaction_depth += 1
+            #self.conn._transaction_depth_request -= 1
     
     def execute_many(self, sql_commands):
         for sql in sql_commands.split(';'):
@@ -181,15 +185,13 @@ class CursorWrapper(object):
     # Transactions
     
     def begin(self):
-        self._transaction_depth_request += 1
+        self.conn.begin()
     
     def commit(self):
         self.conn.commit()
-        self._transaction_depth -= 1
     
     def rollback(self):
         self.conn.rollback()
-        self._transaction_depth -= 1
     
     # this is used by fixture
     def flush(self):
@@ -263,7 +265,6 @@ class CursorWrapper(object):
                 args += conditions[1:]
             else:
                 raise ValueError, "Don't know what to do with these conditions"
-        print sql, args
         self.execute(sql, *args)
     
     # DDL statements
@@ -320,11 +321,14 @@ class ConnectionWrapper(object):
         self.dsn = dsn
         self.conn = None
         self._debug = debug
+        self._transaction_depth = 0
+        self._transaction_depth_request = 0
+        self._rolling_back = False
     
     def cursor(self):
         #cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
         cursor = self.get_cursor()
-        return CursorContextManager(cursor)
+        return TransactionalCursorContextManager(cursor)
     
     def tx_cursor(self):
         #cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
@@ -340,11 +344,63 @@ class ConnectionWrapper(object):
     # we need to rollback transactions after failed statements
     cursor = tx_cursor
     
+    def begin(self):
+        if self._transaction_depth == 0:
+            self._rolling_back = False
+        self._transaction_depth_request += 1
+        self._transaction_depth += 1
+        
+        if self._debug:
+            print 'BEGIN: %d' % self._transaction_depth
+    
     def commit(self):
-        return self.conn.commit()
+        if self._debug:
+            print 'COMMIT: %d' % self._transaction_depth
+        
+        if self._rolling_back:
+            raise TransactionStateError, 'Tried to commit after a nested transaction requested a rollback (or was aborted)'
+        
+        transaction_depth = self._transaction_depth - 1
+        if transaction_depth == 0:
+            if self._debug:
+                print 'COMMITTING'
+            
+            self.conn.commit()
+        elif transaction_depth < 0:
+            raise TransactionStateError, 'Requested a commit but we are not tracking a transaction in progress'
+        else:
+            # transaction depth is 0
+            pass
+        
+        self._transaction_depth -= 1
+        self._transaction_depth_request -= 1
     
     def rollback(self):
-        return self.conn.rollback()
+        if self._debug:
+            print 'ROLLBACK: %d' % self._transaction_depth
+        
+        transaction_depth = self._transaction_depth - 1
+        transaction_depth_delta = 1
+        do_rollback = False
+        if transaction_depth < 0:
+            transaction_depth = 0
+            transaction_depth_delta = 0
+            do_rollback = True
+        elif transaction_depth == 0:
+            do_rollback = True
+        else:
+            self._rolling_back = True
+            # rolling back a nested transaction
+            #raise NotImplementedError, 'Rollback of nested transactions is not supported'
+        
+        if do_rollback:
+            if self._debug:
+                print 'ROLLING BACK'
+            
+            self.conn.rollback()
+        
+        self._transaction_depth = transaction_depth
+        self._transaction_depth_request -= transaction_depth_delta
     
     def connect(self):
         self.conn = psycopg2.connect(self.dsn)
