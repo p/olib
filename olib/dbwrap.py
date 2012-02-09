@@ -53,10 +53,13 @@ def _lists_to_tuples(arg):
     return arg
 
 class CursorWrapper(object):
-    def __init__(self, cursor, conn, debug=False):
+    def __init__(self, cursor, conn,
+        debug_queries=False, debug_transactions=False,
+    ):
         self.cursor = cursor
         self.conn = conn
-        self._debug = debug
+        self._debug_queries = debug_queries
+        self._debug_transactions = debug_transactions
     
     def execute(self, sql, *args):
         return self.execute2(sql, args)
@@ -86,7 +89,7 @@ class CursorWrapper(object):
             args = map(_lists_to_tuples, args)
         
         try:
-            if self._debug:
+            if self._debug_queries:
                 debug_sql = self.cursor.mogrify(sql, args)
                 #debug_sql = sql.strip()
                 #if args:
@@ -317,10 +320,13 @@ class TransactionalCursorContextManager(CursorContextManager):
         return CursorContextManager.__exit__(self, type, value, traceback)
 
 class ConnectionWrapper(object):
-    def __init__(self, dsn, debug=False):
+    def __init__(self, dsn,
+        debug_queries=False, debug_transactions=False,
+    ):
         self.dsn = dsn
         self.conn = None
-        self._debug = debug
+        self._debug_queries = debug_queries
+        self._debug_transactions = debug_transactions
         self._transaction_depth = 0
         self._transaction_depth_request = 0
         self._rolling_back = False
@@ -338,7 +344,9 @@ class ConnectionWrapper(object):
     # cursor returns a context manager, we need a method that returns
     # actual cursor for fixture
     def get_cursor(self):
-        cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
+        cursor = CursorWrapper(self.conn.cursor(), self,
+            debug_queries=self._debug_queries, debug_transactions=self._debug_transactions,
+        )
         return cursor
     
     # we need to rollback transactions after failed statements
@@ -350,11 +358,11 @@ class ConnectionWrapper(object):
         self._transaction_depth_request += 1
         self._transaction_depth += 1
         
-        if self._debug:
+        if self._debug_transactions:
             print 'BEGIN: %d' % self._transaction_depth
     
     def commit(self):
-        if self._debug:
+        if self._debug_transactions:
             print 'COMMIT: %d' % self._transaction_depth
         
         if self._rolling_back:
@@ -363,12 +371,12 @@ class ConnectionWrapper(object):
         transaction_depth = self._transaction_depth - 1
         transaction_depth_delta = 1
         if transaction_depth == 0:
-            if self._debug:
+            if self._debug_transactions:
                 print 'COMMITTING'
             
             self.conn.commit()
         elif transaction_depth == -1:
-            if self._debug:
+            if self._debug_transactions:
                 print 'COMMITTING IMPLICIT TX'
             
             transaction_depth = 0
@@ -385,7 +393,7 @@ class ConnectionWrapper(object):
         self._transaction_depth_request -= transaction_depth_delta
     
     def rollback(self):
-        if self._debug:
+        if self._debug_transactions:
             print 'ROLLBACK: %d' % self._transaction_depth
         
         transaction_depth = self._transaction_depth - 1
@@ -403,7 +411,7 @@ class ConnectionWrapper(object):
             #raise NotImplementedError, 'Rollback of nested transactions is not supported'
         
         if do_rollback:
-            if self._debug:
+            if self._debug_transactions:
                 print 'ROLLING BACK'
             
             self.conn.rollback()
