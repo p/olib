@@ -361,9 +361,18 @@ class ConnectionWrapper(object):
             raise TransactionStateError, 'Tried to commit after a nested transaction requested a rollback (or was aborted)'
         
         transaction_depth = self._transaction_depth - 1
+        transaction_depth_delta = 1
         if transaction_depth == 0:
             if self._debug:
                 print 'COMMITTING'
+            
+            self.conn.commit()
+        elif transaction_depth == -1:
+            if self._debug:
+                print 'COMMITTING IMPLICIT TX'
+            
+            transaction_depth = 0
+            transaction_depth_delta = 0
             
             self.conn.commit()
         elif transaction_depth < 0:
@@ -372,8 +381,8 @@ class ConnectionWrapper(object):
             # transaction depth is 0
             pass
         
-        self._transaction_depth -= 1
-        self._transaction_depth_request -= 1
+        self._transaction_depth = transaction_depth
+        self._transaction_depth_request -= transaction_depth_delta
     
     def rollback(self):
         if self._debug:
