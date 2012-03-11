@@ -114,7 +114,7 @@ class CursorWrapper(object):
         for sql in sql_commands.split(';'):
             sql = sql.strip()
             if sql:
-                self.execute2(sql)
+                self.execute2(sql, ())
     
     #def fetchall(self):
         #return self.cursor.fetchall()
