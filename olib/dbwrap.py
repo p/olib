@@ -142,7 +142,7 @@ class CursorWrapper(object):
     def one_check2(self, sql, args):
         row = self.one2(sql, args)
         if row is None:
-            raise NotFoundError, "No data"
+            raise NotFoundError, "No data %s" % repr(args)
         return row
     
     def all(self, sql, *args):
@@ -172,7 +172,7 @@ class CursorWrapper(object):
         self.execute2(sql, args)
         row = self.cursor.fetchone()
         if row is None:
-            raise NotFoundError, "No data"
+            raise NotFoundError, "No data %s" % repr(args)
         return row[0]
     
     def all_values(self, sql, *args):
