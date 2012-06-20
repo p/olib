@@ -1,7 +1,12 @@
-import psycopg2, psycopg2.extras
+import psycopg2, psycopg2.extras, psycopg2.extensions
 import re
 
 from . import dtuple
+
+# Receive strings from the database in unicode
+# http://initd.org/psycopg/docs/usage.html#unicode-handling
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODE)
+psycopg2.extensions.register_type(psycopg2.extensions.UNICODEARRAY)
 
 class ExpressionValue(str):
     pass
