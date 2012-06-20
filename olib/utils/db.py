@@ -4,6 +4,16 @@ def pivot(rows, column):
         map[row[column]] = row
     return map
 
+def pivot_value(rows, column):
+    map = {}
+    if len(rows) == 0:
+        return map
+    keys = rows[0].keys()
+    value_column = [key for key in keys if key != column][0]
+    for row in rows:
+        map[row[column]] = row[value_column]
+    return map
+
 def pivot_multi(rows, *columns):
     map = {}
     for row in rows:
