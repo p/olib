@@ -111,6 +111,8 @@ class CursorWrapper(object):
                     self.conn.reconnect()
                     self.cursor = self.conn.cursor()
                     self.cursor.execute(sql, args)
+                else:
+                    raise
             else:
                 raise
         
