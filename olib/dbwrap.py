@@ -55,6 +55,9 @@ class TransactionStateError(DatabaseError):
 class MissingCursorDescriptionError(DatabaseError):
     pass
 
+class DatabaseConnectionClosed(DatabaseError):
+    pass
+
 def _lists_to_tuples(arg):
     if isinstance(arg, list):
         arg = tuple(arg)
@@ -112,7 +115,8 @@ class CursorWrapper(object):
                     self.cursor = self.conn.cursor()
                     self.cursor.execute(sql, args)
                 else:
-                    raise
+                    self.conn.want_reconnect = True
+                    raise DatabaseConnectionClosed
             else:
                 raise
         
@@ -342,6 +346,7 @@ class ConnectionWrapper(object):
         self._transaction_depth = 0
         self._transaction_depth_request = 0
         self._rolling_back = False
+        self.want_reconnect = False
     
     def cursor(self):
         #cursor = CursorWrapper(self.conn.cursor(), self, debug=self._debug)
@@ -356,6 +361,14 @@ class ConnectionWrapper(object):
     # cursor returns a context manager, we need a method that returns
     # actual cursor for fixture
     def get_cursor(self):
+        # when we lose the connection at depth > 0,
+        # we don't want to reconnect right away as in that case
+        # the transaction won't be properly setup.
+        # we abort all nested transactions and next time
+        # a cursor is retrieved at depth 0 we try to reconnect.
+        if self._transaction_depth == 0 and self.want_reconnect:
+            self.reconnect()
+        
         cursor = CursorWrapper(self.conn.cursor(), self,
             debug_queries=self._debug_queries, debug_transactions=self._debug_transactions,
         )
@@ -434,6 +447,7 @@ class ConnectionWrapper(object):
     def connect(self):
         self.conn = psycopg2.connect(self.dsn)
         psycopg2.extras.register_hstore(self.conn)
+        self.want_reconnect = False
     
     def reconnect(self):
         self.connect()
