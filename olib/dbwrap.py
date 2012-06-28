@@ -52,6 +52,9 @@ class NotFoundError(DatabaseError):
 class TransactionStateError(DatabaseError):
     pass
 
+class MissingCursorDescriptionError(DatabaseError):
+    pass
+
 def _lists_to_tuples(arg):
     if isinstance(arg, list):
         arg = tuple(arg)
@@ -155,6 +158,8 @@ class CursorWrapper(object):
     
     def all2(self, sql, args):
         self.execute2(sql, args)
+        if self.cursor.description is None:
+            raise MissingCursorDescriptionError
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [dtuple.DatabaseTuple(desc, row) for row in rows]
