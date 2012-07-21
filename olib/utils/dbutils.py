@@ -48,6 +48,7 @@ def split_row(row, *prefixes):
         parts.append({})
     for key in row:
         found = False
+        print key, row
         value = row[key]
         for i in r:
             prefix = prefixes[i]
