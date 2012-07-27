@@ -312,6 +312,14 @@ class CursorWrapper(object):
                 relname not like %s
                 and relname not like %s
         ''', 'pg_%', 'sql_%')
+    
+    def list_sequences(self):
+        return self.all_values('''
+            select relname from pg_class
+            where relkind='S' and
+                relname not like %s
+                and relname not like %s
+        ''', 'pg_%', 'sql_%')
 
 class CursorContextManager(object):
     def __init__(self, cursor):
