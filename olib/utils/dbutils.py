@@ -1,10 +1,20 @@
 def pivot(rows, column):
+    '''Transforms a list of rows into a dictionary. The specified column
+    is used for keys. Each row becomes a value. The key should be unique
+    within the row list, later rows will overwrite earlier rows with the same
+    key.'''
+    
     map = {}
     for row in rows:
         map[row[column]] = row
     return map
 
 def pivot_value(rows, column):
+    '''Transforms a list of rows into a dictionary. The specified column
+    is used for keys. pivot_value assumes that there is a total of two
+    columns. The value of the other column becomes the value in the
+    dictionary. Later values will overwrite earlier values with the same key.'''
+    
     map = {}
     if len(rows) == 0:
         return map
