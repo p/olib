@@ -47,27 +47,24 @@ def pivot_lists(rows, column):
         mapped_row.append(row)
     return map
 
-def split_row(row, *prefixes):
-    if len(prefixes) == 0:
-        return [row]
-    prefixes = [prefix + '_' for prefix in prefixes]
+def split_row_map(row, map):
+    if len(map) == 0:
+        return (row, {})
     base = {}
-    parts = []
-    r = range(len(prefixes))
-    for i in r:
-        parts.append({})
+    parts = {}
+    for prefix in map:
+        parts[map[prefix]] = {}
     for key in row:
         found = False
         value = row[key]
-        for i in r:
-            prefix = prefixes[i]
+        for prefix in map:
             if key.startswith(prefix):
-                parts[i][key[len(prefix):]] = value
+                parts[map[prefix]][key[len(prefix):]] = value
                 found = True
                 break
         if not found:
             base[key] = value
-    return [base] + parts
+    return (base, parts)
 
 class PropertyDict(object):
     def __init__(self, attrs):
@@ -86,8 +83,19 @@ class PropertyDict(object):
         return self.attrs
 
 def munge_row(row, *prefixes):
-    parts = split_row(row, *prefixes)
-    base = parts.pop(0)
-    for i in range(len(prefixes)):
-        base[prefixes[i]] = PropertyDict(parts[i])
+    map = {}
+    for prefix in prefixes:
+        map[prefix + '_'] = prefix
+    return munge_row_map(row, map)
+
+def munge_row_dot(row, *prefixes):
+    map = {}
+    for prefix in prefixes:
+        map[prefix + 's.'] = prefix
+    return munge_row_map(row, map)
+
+def munge_row_map(row, map):
+    base, parts = split_row_map(row, map)
+    for key in map:
+        base[map[key]] = PropertyDict(parts[map[key]])
     return PropertyDict(base)
