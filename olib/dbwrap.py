@@ -100,7 +100,7 @@ class CursorWrapper(object):
             args = map(_lists_to_tuples, args)
         
         if munge:
-            sql, map = _munge_sql(sql)
+            sql, mapping = _munge_sql(sql)
         
         try:
             if self._debug_queries:
@@ -128,7 +128,7 @@ class CursorWrapper(object):
             #self.conn._transaction_depth_request -= 1
         
         if munge:
-            rows = [_munge_row(row, map) for row in rows]
+            rows = [_munge_row(row, mapping) for row in rows]
         
         return rows
     
