@@ -99,3 +99,27 @@ def munge_row_map(row, map):
     for key in map:
         base[map[key]] = PropertyDict(parts[map[key]])
     return PropertyDict(base)
+
+import re
+
+def _munge_sql(sql):
+    regexp = re.compile(r'^(\s*select\s+)(.+?)(\sfrom\s+.+)$', re.S + re.I)
+    match = regexp.match(sql)
+    if not match:
+        raise ValueError, 'Sql did not match regexp'
+    
+    preamble = match.group(1)
+    selects = match.group(2)
+    postamble = match.group(3)
+    
+    tables = {}
+    def replacer(match):
+        tables[match.group(1) + '_'] = match.group(1)
+        return match.group(0) + ' as ' + match.group(1) + '_' + match.group(2)
+    
+    selects = re.sub(r'\b(\w+)s.(\w+(,|$))', replacer, selects)
+    
+    return (preamble + selects + postamble, tables)
+
+def _munge_row(row, map):
+    pass

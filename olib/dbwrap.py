@@ -75,7 +75,7 @@ class CursorWrapper(object):
     def execute(self, sql, *args):
         return self.execute2(sql, args)
     
-    def execute2(self, sql, args):
+    def execute2(self, sql, args, munge=False):
         sql = sql.replace('?', '%s')
         
         convert_lists = False
@@ -99,6 +99,9 @@ class CursorWrapper(object):
         if convert_lists:
             args = map(_lists_to_tuples, args)
         
+        if munge:
+            sql, map = _munge_sql(sql)
+        
         try:
             if self._debug_queries:
                 debug_sql = self.cursor.mogrify(sql, args)
@@ -107,7 +110,7 @@ class CursorWrapper(object):
                     #debug_sql += ', ' + repr(args)
                 debug_sql = WHITESPACE_REGEXP.sub('     ', debug_sql.strip())
                 print 'SQL:', debug_sql
-            return self.cursor.execute(sql, args)
+            rows = self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
             if str(e).startswith('server closed the connection unexpectedly'):
                 if self.conn._transaction_depth == 0:
@@ -123,6 +126,11 @@ class CursorWrapper(object):
         #if self.conn._transaction_depth_request:
             #self.conn._transaction_depth += 1
             #self.conn._transaction_depth_request -= 1
+        
+        if munge:
+            rows = [_munge_row(row, map) for row in rows]
+        
+        return rows
     
     def execute_many(self, sql_commands):
         for sql in sql_commands.split(';'):
@@ -141,6 +149,9 @@ class CursorWrapper(object):
     def one(self, sql, *args):
         return self.one2(sql, args)
     
+    def onem(self, sql, *args):
+        return self.one2(sql, args, munge=True)
+    
     def one2(self, sql, args):
         self.execute2(sql, args)
         row = self.cursor.fetchone()
@@ -153,6 +164,9 @@ class CursorWrapper(object):
     def one_check(self, sql, *args):
         return self.one_check2(sql, args)
     
+    def one_checkm(self, sql, *args):
+        return self.one_check2(sql, args, munge=True)
+    
     def one_check2(self, sql, args):
         row = self.one2(sql, args)
         if row is None:
@@ -161,6 +175,9 @@ class CursorWrapper(object):
     
     def all(self, sql, *args):
         return self.all2(sql, args)
+    
+    def allm(self, sql, *args):
+        return self.all2(sql, args, munge=True)
     
     def all2(self, sql, args):
         self.execute2(sql, args)
@@ -462,3 +479,5 @@ class ConnectionWrapper(object):
     
     def expr(self, value):
         return ExpressionValue(value)
+
+from .utils.dbutils import _munge_sql, _munge_row
