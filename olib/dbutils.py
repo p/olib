@@ -121,5 +121,4 @@ def _munge_sql(sql):
     
     return (preamble + selects + postamble, tables)
 
-def _munge_row(row, map):
-    pass
+_munge_row = munge_row_map
