@@ -152,8 +152,8 @@ class CursorWrapper(object):
     def onem(self, sql, *args):
         return self.one2(sql, args, munge=True)
     
-    def one2(self, sql, args):
-        self.execute2(sql, args)
+    def one2(self, sql, args, **kwargs):
+        self.execute2(sql, args, **kwargs)
         row = self.cursor.fetchone()
         if row is None:
             return None
@@ -167,8 +167,8 @@ class CursorWrapper(object):
     def one_checkm(self, sql, *args):
         return self.one_check2(sql, args, munge=True)
     
-    def one_check2(self, sql, args):
-        row = self.one2(sql, args)
+    def one_check2(self, sql, args, **kwargs):
+        row = self.one2(sql, args, **kwargs)
         if row is None:
             raise NotFoundError, "No data %s" % repr(args)
         return row
@@ -179,8 +179,8 @@ class CursorWrapper(object):
     def allm(self, sql, *args):
         return self.all2(sql, args, munge=True)
     
-    def all2(self, sql, args):
-        self.execute2(sql, args)
+    def all2(self, sql, args, **kwargs):
+        self.execute2(sql, args, **kwargs)
         if self.cursor.description is None:
             raise MissingCursorDescriptionError
         desc = dtuple.TupleDescriptor(self.cursor.description)
