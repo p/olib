@@ -66,6 +66,12 @@ def split_row_map(row, map):
             base[key] = value
     return (base, parts)
 
+def split_row(row, *prefixes):
+    map = {}
+    for prefix in prefixes:
+        map[prefix + '_'] = prefix
+    return split_row_map(row, map)
+
 class PropertyDict(object):
     def __init__(self, attrs):
         self.attrs = attrs
