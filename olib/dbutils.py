@@ -103,13 +103,20 @@ def munge_row_dot(row, *prefixes):
 def munge_row_map(row, map):
     base, parts = split_row_map(row, map)
     for key in map:
-        base[map[key]] = PropertyDict(parts[map[key]])
+        mapped_value = map[key]
+        value = parts[map[key]]
+        if mapped_value is None:
+            for sk in value:
+                base[sk] = value[sk]
+        else:
+            value = PropertyDict(value)
+            base[map[key]] = value
     return PropertyDict(base)
 
 import re
 
 def _munge_sql(sql):
-    regexp = re.compile(r'^(\s*select\s+)(.+?)(\sfrom\s+.+)$', re.S + re.I)
+    regexp = re.compile(r'^(\s*select\s+)(.+?)(\sfrom\s+(\w+).+)$', re.S + re.I)
     match = regexp.match(sql)
     if not match:
         raise ValueError, 'Sql did not match regexp'
@@ -117,10 +124,16 @@ def _munge_sql(sql):
     preamble = match.group(1)
     selects = match.group(2)
     postamble = match.group(3)
+    first_table = match.group(4)
     
     tables = {}
     def replacer(match):
-        tables[match.group(2) + '_'] = match.group(2)
+        table = match.group(2)
+        if table + 's' == first_table:
+            mapped_value = None
+        else:
+            mapped_value = table
+        tables[table + '_'] = mapped_value
         return match.group(1) + ' as ' + match.group(2) + '_' + match.group(3) + match.group(4)
     
     selects = re.sub(r'\b((\w+)s.(\w+))(,|\s*$)', replacer, selects)
