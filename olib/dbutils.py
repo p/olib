@@ -58,18 +58,24 @@ def split_row_map(row, map):
         found = False
         value = row[key]
         for prefix in map:
-            if key.startswith(prefix):
-                parts[map[prefix]][key[len(prefix):]] = value
-                found = True
-                break
+            if map[prefix] is None:
+                base[key] = value
+            else:
+                if key.startswith(prefix):
+                    parts[map[prefix]][key[len(prefix):]] = value
+                    found = True
+                    break
         if not found:
             base[key] = value
     return (base, parts)
 
 def split_row(row, *prefixes):
     map = {}
-    for prefix in prefixes:
+    for prefix in prefixes[1:]:
         map[prefix + '_'] = prefix
+    if len(prefixes) > 0:
+        map[prefixes[0] + '_'] = None
+    print map
     return split_row_map(row, map)
 
 class PropertyDict(object):
@@ -90,8 +96,9 @@ class PropertyDict(object):
 
 def munge_row(row, *prefixes):
     map = {}
-    for prefix in prefixes:
+    for prefix in prefixes[1:]:
         map[prefix + '_'] = prefix
+    map[prefixes[0] + '_'] = None
     return munge_row_map(row, map)
 
 def munge_row_dot(row, *prefixes):
