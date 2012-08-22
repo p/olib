@@ -116,7 +116,7 @@ def munge_row_map(row, map):
 import re
 
 def _munge_sql(sql):
-    regexp = re.compile(r'^(\s*select\s+)(.+?)(\sfrom\s+(\w+).+)$', re.S + re.I)
+    regexp = re.compile(r'^(\s*select\s+)(.+?)(\sfrom\s+(\w+)(?:.+)?)$', re.S + re.I)
     match = regexp.match(sql)
     if not match:
         raise ValueError, 'Sql did not match regexp'
