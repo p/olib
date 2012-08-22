@@ -117,7 +117,7 @@ def _munge_sql(sql):
         tables[match.group(2) + '_'] = match.group(2)
         return match.group(1) + ' as ' + match.group(2) + '_' + match.group(3) + match.group(4)
     
-    selects = re.sub(r'\b((\w+)s.(\w+))(,|$)', replacer, selects)
+    selects = re.sub(r'\b((\w+)s.(\w+))(,|\s*$)', replacer, selects)
     
     return (preamble + selects + postamble, tables)
 

@@ -100,7 +100,9 @@ class CursorWrapper(object):
             args = map(_lists_to_tuples, args)
         
         if munge:
-            sql, mapping = _munge_sql(sql)
+            sql, self._munge_mapping = _munge_sql(sql)
+        else:
+            self._munge_mapping = None
         
         try:
             if self._debug_queries:
@@ -110,7 +112,7 @@ class CursorWrapper(object):
                     #debug_sql += ', ' + repr(args)
                 debug_sql = WHITESPACE_REGEXP.sub('     ', debug_sql.strip())
                 print 'SQL:', debug_sql
-            rows = self.cursor.execute(sql, args)
+            self.cursor.execute(sql, args)
         except psycopg2.OperationalError, e:
             if str(e).startswith('server closed the connection unexpectedly'):
                 if self.conn._transaction_depth == 0:
@@ -126,11 +128,6 @@ class CursorWrapper(object):
         #if self.conn._transaction_depth_request:
             #self.conn._transaction_depth += 1
             #self.conn._transaction_depth_request -= 1
-        
-        if munge:
-            rows = [_munge_row(row, mapping) for row in rows]
-        
-        return rows
     
     def execute_many(self, sql_commands):
         for sql in sql_commands.split(';'):
@@ -159,6 +156,8 @@ class CursorWrapper(object):
             return None
         desc = dtuple.TupleDescriptor(self.cursor.description)
         row = dtuple.DatabaseTuple(desc, row)
+        if self._munge_mapping:
+            row = _munge_row(dict(row), self._munge_mapping)
         return row
     
     def one_check(self, sql, *args):
@@ -186,6 +185,8 @@ class CursorWrapper(object):
         desc = dtuple.TupleDescriptor(self.cursor.description)
         rows = self.cursor.fetchall()
         rows = [dtuple.DatabaseTuple(desc, row) for row in rows]
+        if self._munge_mapping:
+            rows = [_munge_row(row, self._munge_mapping) for row in rows]
         return rows
     
     def one_value(self, sql, *args):
