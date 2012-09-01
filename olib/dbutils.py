@@ -57,7 +57,10 @@ def split_row_map(row, map):
             parts[map[prefix]] = {}
     for key in row:
         found = False
-        value = row[key]
+        try:
+            value = row[key]
+        except IndexError, e:
+            raise IndexError, '%s: %s' % (e.message, key)
         for prefix in map:
             if key.startswith(prefix):
                 adjusted_key = key[len(prefix):]
