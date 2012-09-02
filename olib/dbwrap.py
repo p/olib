@@ -186,7 +186,8 @@ class CursorWrapper(object):
         rows = self.cursor.fetchall()
         rows = [dtuple.DatabaseTuple(desc, row) for row in rows]
         if self._munge_mapping:
-            rows = [_munge_row(row, self._munge_mapping) for row in rows]
+            # XXX dispose of dict() call
+            rows = [_munge_row(dict(row), self._munge_mapping) for row in rows]
         return rows
     
     def one_value(self, sql, *args):
