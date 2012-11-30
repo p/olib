@@ -63,6 +63,54 @@ def _lists_to_tuples(arg):
         arg = tuple(arg)
     return arg
 
+class CachingCursorWrapper(object):
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.cache = {}
+    
+    def mogrify(self, sql, args):
+        return self.cursor.mogrify(sql, args)
+    
+    def execute(self, sql, args):
+        key = (sql, repr(args))
+        if key in self.cache:
+            self.result = self.cache[key]
+            self.executing = False
+        else:
+            self.cursor.execute(sql, args)
+            self.result = self.cache[key] = {}
+            self.executing = True
+    
+    def populate_result(self):
+        rows = self.cursor.fetchall()
+        description = self.cursor.description
+        self.result['rows'] = rows
+        self.result['description'] = description
+        self.executing = False
+    
+    @property
+    def description(self):
+        if self.executing:
+            self.populate_result()
+        return self.result['description']
+    
+    def fetchall(self):
+        if self.executing:
+            self.populate_result()
+        return self.result['rows']
+    
+    def fetchone(self):
+        if self.executing:
+            self.populate_result()
+        rows = self.result['rows']
+        if rows:
+            return rows[0]
+        else:
+            return None
+    
+    def close(self):
+        self.cursor.close()
+
 class CursorWrapper(object):
     def __init__(self, cursor, conn,
         debug_queries=False, debug_transactions=False,
@@ -385,9 +433,13 @@ class ConnectionWrapper(object):
         cursor = self.get_cursor()
         return TransactionalCursorContextManager(cursor)
     
+    def caching_cursor(self):
+        cursor = self.get_cursor(CachingCursorWrapper)
+        return TransactionalCursorContextManager(cursor)
+    
     # cursor returns a context manager, we need a method that returns
     # actual cursor for fixture
-    def get_cursor(self):
+    def get_cursor(self, wrapper=None):
         # when we lose the connection at depth > 0,
         # we don't want to reconnect right away as in that case
         # the transaction won't be properly setup.
@@ -396,7 +448,10 @@ class ConnectionWrapper(object):
         if self._transaction_depth == 0 and self.want_reconnect:
             self.reconnect()
         
-        cursor = CursorWrapper(self.conn.cursor(), self,
+        cursor = self.conn.cursor()
+        if wrapper is not None:
+            cursor = wrapper(cursor)
+        cursor = CursorWrapper(cursor, self,
             debug_queries=self._debug_queries, debug_transactions=self._debug_transactions,
         )
         return cursor
