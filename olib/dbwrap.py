@@ -387,6 +387,18 @@ class CursorWrapper(object):
                 relname not like %s
                 and relname not like %s
         ''', 'pg_%', 'sql_%')
+    
+    def list_functions(self):
+        public_namespace = self.one_value_check('''
+            select oid from pg_namespace where nspname=?
+        ''', 'public')
+        plpgsql_language = self.one_value_check('''
+            select oid from pg_language where lanname=?
+        ''', 'plpgsql')
+        return self.all_values('''
+            select proname from pg_proc
+            where pronamespace=? and prolang=?
+        ''', public_namespace, plpgsql_language)
 
 class CursorContextManager(object):
     def __init__(self, cursor):
