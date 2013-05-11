@@ -1,3 +1,4 @@
+import time as _time
 import lxml.etree
 import markupsafe
 import xml.sax.saxutils
@@ -28,6 +29,19 @@ class FancyPage(object):
             if 'id' in heading.attrib:
                 sections.append((heading.attrib['id'], heading.text))
         return sections
+    
+    @property
+    def has_dateline(self):
+        return 'published' in self.page.meta
+    
+    @property
+    def dateline(self):
+        time = self.page.meta['published'].timetuple()
+        dl = _time.strftime('Published: %B %e, %Y', time)
+        if 'updated' in self.page.meta:
+            time = self.page.meta['updated'].timetuple()
+            dl += _time.strftime('; Updated: %B %e, %Y', time)
+        return dl
 
 class PageIndex(object):
     '''Index of Flask-FlatPages pages.
@@ -39,7 +53,7 @@ class PageIndex(object):
     def __init__(self, pages):
         self.pages = pages
     
-    def url(self, name):
+    def url(self, name, title=None):
         found = False
         for page in self.pages:
             if name == page.path:
@@ -48,5 +62,18 @@ class PageIndex(object):
         if not found:
             raise ValueError('Page %s not found' % name)
         href = url_for('page', path=page.path)
-        title = page.meta['title']
+        if title is None:
+            title = page.meta['title']
         return markupsafe.Markup('<a href=%s>%s</a>') % (markupsafe.Markup(xml.sax.saxutils.quoteattr(href)), title)
+    
+    def has_path(self, path):
+        for page in self.pages:
+            if path == page.path:
+                return True
+        return False
+    
+    def get_by_path(self, path):
+        for page in self.pages:
+            if path == page.path:
+                return page
+        raise KeyError, 'No page with path %s' % path
