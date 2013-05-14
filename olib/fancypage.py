@@ -25,7 +25,7 @@ class FancyPage(object):
     def sections(self):
         doc = lxml.etree.HTML(self.page.html)
         sections = []
-        for heading in doc.xpath('//h2'):
+        for heading in doc.xpath('//h1 | //h2'):
             if 'id' in heading.attrib:
                 sections.append((heading.attrib['id'], heading.text))
         return sections
