@@ -40,7 +40,7 @@ class FancyPage(object):
         dl = _time.strftime('Published: %B %e, %Y', time)
         if 'updated' in self.page.meta:
             time = self.page.meta['updated'].timetuple()
-            dl += _time.strftime('; Updated: %B %e, %Y', time)
+            dl += _time.strftime('; updated: %B %e, %Y', time)
         return dl
 
 class PageIndex(object):
