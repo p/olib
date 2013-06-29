@@ -1,3 +1,5 @@
+import lxml.etree
+
 nofollow_offenders = [
     'stackoverflow.com',
     'wikipedia.org',
