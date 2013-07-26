@@ -23,8 +23,7 @@ class Migration(object):
     def down_fn(self):
         return getattr(sys.modules[self.fn.__module__], self.name + '_down')
 
-def find_migrations():
-    from . import migrations as migrations_module
+def find_migrations(migrations_module):
     import types, re
     
     migrations = []
@@ -45,13 +44,11 @@ def find_migrations():
     
     return migrations
 
-def migrate():
-    from . import environment
-    db_conn = environment._db_conn
+def migrate(db_conn, migrations_module):
     create_migrations_table(db_conn)
     
     migrator = check_and_migrate_via_db
-    migrations = find_migrations()
+    migrations = find_migrations(migrations_module)
     
     for migration in migrations:
         migrator(migration.name, migration.fn, db_conn)
