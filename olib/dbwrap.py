@@ -425,6 +425,7 @@ class TransactionalCursorContextManager(CursorContextManager):
 class ConnectionWrapper(object):
     def __init__(self, dsn,
         debug_queries=False, debug_transactions=False,
+        use_hstore=False,
     ):
         self.dsn = dsn
         self.conn = None
@@ -433,6 +434,7 @@ class ConnectionWrapper(object):
         self._transaction_depth = 0
         self._transaction_depth_request = 0
         self._rolling_back = False
+        self._use_hstore = use_hstore
         self.want_reconnect = False
     
     def cursor(self):
@@ -540,7 +542,8 @@ class ConnectionWrapper(object):
     
     def connect(self):
         self.conn = psycopg2.connect(self.dsn)
-        psycopg2.extras.register_hstore(self.conn)
+        if self._use_hstore:
+            psycopg2.extras.register_hstore(self.conn)
         self.want_reconnect = False
     
     def reconnect(self):
