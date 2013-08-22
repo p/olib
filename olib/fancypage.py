@@ -54,13 +54,7 @@ class PageIndex(object):
         self.pages = pages
     
     def url(self, name, title=None):
-        found = False
-        for page in self.pages:
-            if name == page.path:
-                found = True
-                break
-        if not found:
-            raise ValueError('Page %s not found' % name)
+        page = self.get_by_path(name)
         href = url_for('page', path=page.path)
         if title is None:
             title = page.meta['title']
@@ -68,12 +62,12 @@ class PageIndex(object):
     
     def has_path(self, path):
         for page in self.pages:
-            if path == page.path:
+            if path == page.meta.get('path', page.path):
                 return True
         return False
     
     def get_by_path(self, path):
         for page in self.pages:
-            if path == page.path:
+            if path == page.meta.get('path', page.path):
                 return page
         raise KeyError, 'No page with path %s' % path
