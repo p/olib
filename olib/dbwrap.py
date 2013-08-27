@@ -268,6 +268,10 @@ class CursorWrapper(object):
         rows = [row[0] for row in rows]
         return rows
     
+    @property
+    def rowcount(self):
+        return self.cursor.rowcount
+    
     # Transactions
     
     def begin(self):
@@ -540,7 +544,7 @@ class ConnectionWrapper(object):
     
     def connect(self):
         self.conn = psycopg2.connect(self.dsn)
-        psycopg2.extras.register_hstore(self.conn)
+        #psycopg2.extras.register_hstore(self.conn)
         self.want_reconnect = False
     
     def reconnect(self):
