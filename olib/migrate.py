@@ -1,4 +1,5 @@
 import sys
+from . import dbwrap
 
 class MigrationError(StandardError):
     pass
@@ -112,8 +113,8 @@ def build_truncate_all_tables_stored_procedure():
     '''
     return sql
 
-def create_migrations_table(db):
-    with db.tx_cursor() as c:
+def create_migrations_table(conn):
+    with transactional_cursor(conn) as c:
         tables = c.list_tables()
         if not 'migrations' in tables:
             c.execute('''
@@ -125,3 +126,24 @@ def create_migrations_table(db):
                     primary key (id)
                 );
             ''')
+
+class transactional_cursor(object):
+    def __init__(self, conn):
+        self.cursor = dbwrap.CursorWrapper(conn.cursor(), conn)
+    
+    def __enter__(self):
+        return self.cursor
+    
+    def __exit__(self, type, value, traceback):
+        if type is None:
+            self.cursor.commit()
+            self.cursor.close()
+        else:
+            try:
+                self.cursor.rollback()
+            except:
+                pass
+            try:
+                self.cursor.close()
+            except:
+                pass
