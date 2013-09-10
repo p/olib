@@ -54,6 +54,13 @@ class CursorWrapper(object):
         values = [row[0] for row in rows]
         return values
     
+    def one_value(self, *args):
+        self.cursor.execute(*args)
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        return row[0]
+    
     def execute(self, *args):
         return self.cursor.execute(*args)
     
@@ -142,22 +149,22 @@ class Migrator(object):
             db_facade = self.db_facade_class(c)
             db_facade.create_migrations_table()
 
-    def migrate(name, fn, dir='up'):
+    def migrate(self, name, fn, dir='up'):
         with self.transactional_cursor() as c:
             migrated = c.one_value('''
-                select id from migrations where name=?
-            ''', name)
+                select id from migrations where name=%s
+            ''', (name,))
             if dir == 'up' and not migrated:
                 fn(self.conn, c.cursor)
                 c.execute('''
                     insert into migrations (name, migrated_at)
                     values (?, now())
-                ''', name)
+                ''', (name,))
             elif dir == 'down' and migrated:
                 fn(self.conn, c.cursor)
                 c.execute('''
-                    delete from migrations where name=?
-                ''', name)
+                    delete from migrations where name=%s
+                ''', (name,))
 
 def migrate(dialect, db_conn, migrations_module):
     facade_class = db_facade_factory(dialect)
