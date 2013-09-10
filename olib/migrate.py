@@ -158,7 +158,7 @@ class Migrator(object):
                 fn(self.conn, c.cursor)
                 c.execute('''
                     insert into migrations (name, migrated_at)
-                    values (?, now())
+                    values (%s, now())
                 ''', (name,))
             elif dir == 'down' and migrated:
                 fn(self.conn, c.cursor)
@@ -193,7 +193,7 @@ def erase(migration_number):
     db_conn = environment._db_conn
     with db_conn.tx_cursor() as c:
         c.execute('''
-            delete from migrations where name like ?
+            delete from migrations where name like %s
         ''', ('m%04d%%' % migration_number))
 
 def build_truncate_all_tables_stored_procedure():
