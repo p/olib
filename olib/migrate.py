@@ -44,14 +44,137 @@ def find_migrations(migrations_module):
     
     return migrations
 
-def migrate(db_conn, migrations_module):
-    create_migrations_table(db_conn)
+class CursorWrapper(object):
+    def __init__(self, cursor):
+        self.cursor = cursor
     
-    migrator = check_and_migrate_via_db
+    def all_values(self, *args):
+        self.cursor.execute(*args)
+        rows = self.cursor.fetchall()
+        values = [row[0] for row in rows]
+        return values
+    
+    def one_value(self, *args):
+        self.cursor.execute(*args)
+        row = self.cursor.fetchone()
+        if row is None:
+            return None
+        return row[0]
+    
+    def execute(self, *args):
+        return self.cursor.execute(*args)
+    
+    def commit(self, *args):
+        return self.cursor.commit(*args)
+    
+    def rollback(self, *args):
+        return self.cursor.rollback(*args)
+    
+    def close(self, *args):
+        return self.cursor.close(*args)
+
+class DbFacade(object):
+    def __init__(self, cursor):
+        self.cursor = cursor
+    
+class MysqlFacade(DbFacade):
+    def list_tables(self):
+        return self.cursor.all_values('''
+            show tables
+        ''')
+    
+    def create_migrations_table(self):
+        tables = self.list_tables()
+        if not 'migrations' in tables:
+            self.cursor.execute('''
+                create table migrations (
+                    id integer auto_increment primary key,
+                    name varchar(100) not null unique key,
+                    migrated_at timestamp not null
+                );
+            ''')
+    
+    def commit(self):
+        return self.cursor.execute('commit')
+    
+    def rollback(self):
+        return self.cursor.execute('rollback')
+
+class PostgresqlFacade(DbFacade):
+    def list_tables(self):
+        return self.cursor.all_values('''
+            select relname from pg_class
+            where relkind='r' and
+                relname not like %s
+                and relname not like %s
+        ''', ('pg_%', 'sql_%'))
+    
+    def create_migrations_table(self):
+        tables = self.list_tables()
+        if not 'migrations' in tables:
+            self.cursor.execute('''
+                create table migrations (
+                    id serial,
+                    name varchar(100) not null,
+                    migrated_at timestamp not null,
+                    constraint migrations_name_unique unique (name),
+                    primary key (id)
+                );
+            ''')
+    
+    def commit(self):
+        return self.cursor.commit()
+    
+    def rollback(self):
+        return self.cursor.rollback()
+
+def db_facade_factory(dialect):
+    this_module = sys.modules[__name__]
+    class_name = dialect[0].upper() + dialect[1:] + 'Facade'
+    facade_class = getattr(this_module, class_name)
+    return facade_class
+
+class Migrator(object):
+    def __init__(self, db_facade_class, db_conn):
+        self.db_facade_class = db_facade_class
+        self.conn = db_conn
+    
+    def transactional_cursor(self):
+        cursor = CursorWrapper(self.conn.cursor())
+        facade = self.db_facade_class(cursor)
+        return TransactionalCursor(cursor, facade)
+    
+    def create_migrations_table(self):
+        with self.transactional_cursor() as c:
+            db_facade = self.db_facade_class(c)
+            db_facade.create_migrations_table()
+
+    def migrate(self, name, fn, dir='up'):
+        with self.transactional_cursor() as c:
+            migrated = c.one_value('''
+                select id from migrations where name=%s
+            ''', (name,))
+            if dir == 'up' and not migrated:
+                fn(self.conn, c.cursor)
+                c.execute('''
+                    insert into migrations (name, migrated_at)
+                    values (%s, now())
+                ''', (name,))
+            elif dir == 'down' and migrated:
+                fn(self.conn, c.cursor)
+                c.execute('''
+                    delete from migrations where name=%s
+                ''', (name,))
+
+def migrate(dialect, db_conn, migrations_module):
+    facade_class = db_facade_factory(dialect)
+    migrator = Migrator(facade_class, db_conn)
+    migrator.create_migrations_table()
+    
     migrations = find_migrations(migrations_module)
     
     for migration in migrations:
-        migrator(migration.name, migration.fn, db_conn)
+        migrator.migrate(migration.name, migration.fn)
 
 def execute_down(migration_number):
     migrator = check_and_migrate_via_db
@@ -70,25 +193,8 @@ def erase(migration_number):
     db_conn = environment._db_conn
     with db_conn.tx_cursor() as c:
         c.execute('''
-            delete from migrations where name like ?
+            delete from migrations where name like %s
         ''', ('m%04d%%' % migration_number))
-
-def check_and_migrate_via_db(name, fn, db_conn, dir='up'):
-    with db_conn.tx_cursor() as c:
-        migrated = c.one_value('''
-            select id from migrations where name=?
-        ''', name)
-        if dir == 'up' and not migrated:
-            fn(db_conn)
-            c.execute('''
-                insert into migrations (name, migrated_at)
-                values (?, now())
-            ''', name)
-        elif dir == 'down' and migrated:
-            fn(db_conn)
-            c.execute('''
-                delete from migrations where name=?
-            ''', name)
 
 def build_truncate_all_tables_stored_procedure():
     from . import environment
@@ -112,16 +218,24 @@ def build_truncate_all_tables_stored_procedure():
     '''
     return sql
 
-def create_migrations_table(db):
-    with db.tx_cursor() as c:
-        tables = c.list_tables()
-        if not 'migrations' in tables:
-            c.execute('''
-                create table migrations (
-                    id serial,
-                    name varchar(100) not null,
-                    migrated_at timestamp not null,
-                    constraint migrations_name_unique unique (name),
-                    primary key (id)
-                );
-            ''')
+class TransactionalCursor(object):
+    def __init__(self, cursor, facade):
+        self.cursor = cursor
+        self.facade = facade
+    
+    def __enter__(self):
+        return self.cursor
+    
+    def __exit__(self, type, value, traceback):
+        if type is None:
+            self.facade.commit()
+            self.cursor.close()
+        else:
+            try:
+                self.facade.rollback()
+            except:
+                pass
+            try:
+                self.cursor.close()
+            except:
+                pass
