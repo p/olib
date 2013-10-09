@@ -34,6 +34,14 @@ class TestLoader(object):
         return all_tests
 
 class TestMeta(object):
+    def __repr__(self):
+        if self.method:
+            method = '#' + self.method
+        else:
+            method = ''
+        return '<TestMeta (%s)' % (self.fullname)
+
+class TestMetaFull(TestMeta):
     def __init__(self, name):
         self.fullname = name
         if '#' in name:
@@ -41,10 +49,53 @@ class TestMeta(object):
         else:
             self.filespec, self.method = name, None
         self.group, self.lang, self.file = self.filespec.split('.')
+
+class TestMetaFile(TestMeta):
+    def __init__(self, name):
+        self.lang, self.file = name.split('.')
     
-    def __repr__(self):
-        if self.method:
-            method = '#' + self.method
-        else:
-            method = ''
-        return '<TestMeta (%s)' % (self.fullname)
+    @property
+    def fullname(self):
+        raise ValueError, 'No group in meta from file'
+    
+    @property
+    def filespec(self):
+        raise ValueError, 'No group in meta from file'
+    
+    @property
+    def group(self):
+        raise ValueError, 'No group in meta from file'
+
+class TestDepResolver(object):
+    def resolve(self, all_tests, requested_tests):
+        tests_to_run = []
+        
+        needed_tests = {}
+        processed = {}
+        pending = {}
+        for test in requested_tests:
+            pending[test] = True
+        
+        while pending:
+            active = pending.keys()[0]
+            del pending[active]
+            processed[active] = True
+            for group, names in all_tests:
+                for planned_test in names:
+                    checkpoint = '%s.%s' % (group, planned_test.name)
+                    if checkpoint == active.filespec:
+                        deps = planned_test.dependencies
+                        for dep in deps:
+                            if dep not in processed and dep not in pending:
+                                assert dep.method
+                                pending[dep] = True
+        
+        self.requested_tests = []
+        for group, names in all_tests:
+            for planned_test in names:
+                test_name = '%s.%s' % (group, planned_test.name)
+                for comp in processed:
+                    if comp.lang == planned_test.meta.lang and comp.file == planned_test.meta.file:
+                        tests_to_run.append(group + '.' + planned_test.name)
+        
+        return tests_to_run
