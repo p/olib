@@ -2,6 +2,7 @@ import lxml.etree
 
 nofollow_offenders = [
     'stackoverflow.com',
+    'superuser.com',
     'wikipedia.org',
     'trackpedia.com',
 ]
